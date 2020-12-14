@@ -1,0 +1,282 @@
+;************** USB Potentiometer Control *************************
+;This program is used to set PIC 16F887 as slave on I2C bus
+;providing ADC for 13 potentiometers
+
+;					Created by Robert Volaric
+;******************************************************************
+    #include <p16f887.inc>
+; CONFIG1
+; __config 0xFFF5
+ __CONFIG _CONFIG1, _FOSC_INTRC_CLKOUT & _WDTE_OFF & _PWRTE_OFF & _MCLRE_ON & _CP_OFF & _CPD_OFF & _BOREN_ON & _IESO_ON & _FCMEN_ON & _LVP_ON
+; CONFIG2
+; __config 0xFFFF
+ __CONFIG _CONFIG2, _BOR4V_BOR40V & _WRT_OFF
+
+		cblock 0x2b
+		index		;increments channel for ADC  
+		index_sub	;number of channels to sample
+		channel
+		endc
+    
+	
+ ;*********************start vector**********************************
+		    org 00
+		
+		goto main
+    
+ 
+  ;*********************interupt vector******************************
+ 
+		org 0x0004
+		
+;i2c_start	
+		banksel PIR1
+		btfss PIR1, SSPIF
+		goto bus_col
+		goto read
+		retfie
+ 
+	
+    ;****************************** ISR ***********************************
+  
+bus_col		
+		banksel SSPBUF
+		clrf SSPBUF
+		banksel PIR2
+		bcf PIR2, BCLIF
+		banksel SSPCON
+		bsf SSPCON, CKP
+		retfie
+		
+read		
+		banksel SSPSTAT
+		btfss SSPSTAT, 0x05
+		goto r_address
+		goto r_data
+		retfie
+		
+r_address	
+		banksel ADCON0
+		movlw B'11000000'	; set clock Fosc/8, 2us, AN0
+		movwf ADCON0
+		bsf ADCON0, ADON
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		bsf ADCON0, GO    
+		btfsc ADCON0, GO
+		goto $-1
+		banksel SSPBUF
+		movf ADRESH, W
+		movwf SSPBUF
+		bsf SSPCON, CKP   ;release clock strech
+		banksel PIR1
+		bcf PIR1,SSPIF
+		retfie
+	     
+r_data		
+		
+		banksel ADCON0
+		movlw 0x00
+		subwf index, W
+		btfss STATUS, Z
+		goto $ + 4
+		bcf STATUS, Z
+		movlw B'11000100'	; set clock Fosc/8, 2us, AN1
+		movwf channel		
+		movlw 0x01
+		subwf index, W
+		btfss STATUS, Z
+		goto $ + 4
+		bcf STATUS, Z
+		movlw B'11001000'	; set clock Fosc/8, 2us, AN2
+		movwf channel
+		movlw 0x02
+		subwf index, W
+		btfss STATUS, Z
+		goto $ + 4
+		bcf STATUS, Z
+		movlw B'11001100'	; set clock Fosc/8, 2us, AN3
+		movwf channel
+		movlw 0x03
+		subwf index, W
+		btfss STATUS, Z
+		goto $ + 4
+		bcf STATUS, Z
+		movlw B'11010000'	; set clock Fosc/8, 2us, AN4
+		movwf channel
+		movlw 0x04
+		subwf index, W
+		btfss STATUS, Z
+		goto $ + 4
+		bcf STATUS, Z
+		movlw B'11010100'	; set clock Fosc/8, 2us, AN5
+		movwf channel
+		movlw 0x05
+		subwf index, W
+		btfss STATUS, Z
+		goto $ + 4
+		bcf STATUS, Z
+		movlw B'11011000'	; set clock Fosc/8, 2us, AN6
+		movwf channel
+		movlw 0x06
+		subwf index, W
+		btfss STATUS, Z
+		goto $ + 4
+		bcf STATUS, Z
+		movlw B'11011100'	; set clock Fosc/8, 2us, AN7
+		movwf channel
+		movlw 0x07
+		subwf index, W
+		btfss STATUS, Z
+		goto $ + 4
+		bcf STATUS, Z
+		movlw B'11100000'	; set clock Fosc/8, 2us, AN8
+		movwf channel
+		movlw 0x08
+		subwf index, W
+		btfss STATUS, Z
+		goto $ + 4
+		bcf STATUS, Z
+		movlw B'11101000'	; set clock Fosc/8, 2us, AN10
+		movwf channel
+		movlw 0x09
+		subwf index, W
+		btfss STATUS, Z
+		goto $ + 4
+		bcf STATUS, Z
+		movlw B'11101100'	; set clock Fosc/8, 2us, AN11
+		movwf channel
+		movlw 0x0a
+		subwf index, W
+		btfss STATUS, Z
+		goto $ + 4
+		bcf STATUS, Z
+		movlw B'11110000'	; set clock Fosc/8, 2us, AN12
+		movwf channel
+		movlw 0x0b
+		subwf index, W
+		btfss STATUS, Z
+		goto $ + 4
+		bcf STATUS, Z
+		movlw B'11110100'	; set clock Fosc/8, 2us, AN13
+		movwf channel
+		
+		movf channel, W		
+		movwf ADCON0
+		bsf ADCON0, ADON
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		nop
+		bsf ADCON0, GO    
+		btfsc ADCON0, GO
+		goto $-1
+		banksel SSPBUF
+		movf ADRESH, W
+		movwf SSPBUF
+		bsf SSPCON, CKP   ;release clock strech
+		incf index, f
+		movf index_sub, W
+		subwf index, W
+		btfss STATUS, Z
+		goto $ + 2
+		clrf index
+		bcf PIR1, SSPIF
+		retfie
+		
+
+		
+
+main
+		
+		call initialize
+  
+  
+initialize  
+	    banksel TRISA
+	    movlw B'00101111'
+	    movwf TRISA
+	    movlw B'00110111'
+	    movwf TRISB
+	    movlw B'00011000'	;SDA, SCL set as inputs
+	    movwf TRISC
+	    movlw 0x00
+	    movwf TRISD
+	    movlw 0x07
+	    movwf TRISE
+	    banksel PORTA
+	    movlw 0x00
+	    movwf PORTA
+	    movlw 0x00
+	    movwf PORTB
+	    movlw 0x00
+	    movwf PORTC
+	    movlw B'00000000'
+	    movwf PORTD
+	    movlw 0x00
+	    movwf PORTE
+	    banksel ANSEL
+	    movlw B'11111111'
+	    movwf ANSEL	
+	    movlw B'00111101'
+	    movwf ANSELH	 
+	    movlw B'11000000'	; set Global Interrupt
+	    movwf INTCON
+	    banksel SSPCON
+	    movlw B'00110110'	; SSPEN set, I2C eenabled
+	    movwf SSPCON
+	    banksel PIE1
+	    bsf PIE1, SSPIE	; enable SSP interrupts
+	    bsf	PIE2, BCLIE	; bus collision interrupt enable
+	    movlw 0x08
+	    movwf SSPADD	; slave address
+	    movlw 0x00	     
+	    movwf ADCON1	;left justify, Vdd Vss ref
+	    banksel PIR1
+	    bcf	PIR1, SSPIF	; clear the SSP interrupt flag	
+	    bcf PIR2, BCLIF	; clear the bus collision interrupt flag
+	    movlw 0x40		
+	    movwf ADCON0	; ADC Fosc/8
+	    
+	    movlw 0x00
+	    movwf index
+	    movlw 0x0d
+	    movwf index_sub
+	    
+	
+	
+loop	    
+	   goto loop 
+	   
+	
+	   end
+    
+   
+   
+    
+    
+    
+    
+    
+    
+    
+	
+	
+    
+    
+
+
+
+
+
+
+
+

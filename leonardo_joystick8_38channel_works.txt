@@ -1,0 +1,1475 @@
+#include <Joystick8.h>
+
+#include <Wire.h>
+
+
+#define button 7
+#define diode 8
+
+#define LED 13
+
+// analog input selection ADMUX register with Vref selection
+
+#define _1_A_X  0x60  // _1_ X rotation input PF0, ADC0
+#define _1_A_Y  0x61  // _1_ X rotation input PF1, ADC1
+#define _1_A_Z  0x64  // _1_ X rotation input PF4, ADC4
+#define _1_A_XR  0x65  // _1_ Y rotation input PF5, ADC5
+#define _1_A_YR  0x66  // _1_ Y rotation input PF6, ADC6
+
+#define _2_A_X  0x67  // _2_ X rotation input PF7, ADC7
+#define _2_A_Y  0x60  // _2_ X rotation input PD4, ADC8
+#define _2_A_Z  0x62  // _2_ X rotation input, PD7, ADC10
+#define _2_A_XR  0x63  // _2_ Y rotation input, PB4, ADC11
+#define _2_A_YR  0x64  // _2_ Y rotation input PB5, ADC12
+
+#define _3_A_X  0x65  // _3_ X rotation input PB6, ADC13
+#define _3_A_Y  0x61  // _3_ X rotation input PD6, ADC9
+#define _3_A_Z  0  // _3_ Y rotation input PF4, ADC4
+#define _3_A_XR  1  // _3_ X rotation input PD4, ADC8
+#define _3_A_YR  2  // _3_ Y rotation input PD6, ADC9
+
+
+#define _4_A_X  3  // _4_ X rotation input PF5, ADC5
+#define _4_A_Y  4  // _4_ X rotation input PF5, ADC5
+#define _4_A_Z  5  // _4_ Y rotation input PF4, ADC4
+#define _4_A_XR  6  // _4_ X rotation input PF6, ADC6
+#define _4_A_YR  7     // _4_ Y rotation input PF7, ADC7
+
+
+#define _5_A_X  8  // _5_ X rotation input PF5, ADC5
+#define _5_A_Y  9  // _5_ X rotation input PF5, ADC5
+#define _5_A_Z  10  // _5_ Y rotation input PF4, ADC4
+#define _5_A_XR  11    // _5_ X rotation input PD7, ADC10
+#define _5_A_YR  12    // _5_ Y rotation input PB4, ADC11
+
+#define _6_A_X  0  // _6_ X rotation input PF5, ADC5
+#define _6_A_Y  1  // _6_ X rotation input PF5, ADC5
+#define _6_A_Z  2  // _6_ Y rotation input PF4, ADC4
+#define _6_A_XR  3  // _6_ X rotation input PF6, ADC6
+#define _6_A_YR  4     // _6_ Y rotation input PF7, ADC7
+
+
+#define _7_A_X  5  // _7_ X rotation input PF5, ADC5
+#define _7_A_Y  6  // _7_ X rotation input PF5, ADC5
+#define _7_A_Z  7  // _7_ Y rotation input PF4, ADC4
+#define _7_A_XR  8    // _7_ X rotation input PD7, ADC10
+#define _7_A_YR  9    // _7_ Y rotation input PB4, ADC11
+
+#define _8_A_X  10  // _8_ X rotation input PF5, ADC5
+#define _8_A_Y  11  // _8_ X rotation input PF5, ADC5
+#define _8_A_Z  12  // _8_ Y rotation input PF4, ADC4
+
+
+
+
+#define MARGIN_POS 8 // threshold for loop exit, eliminates small changes on adc
+#define MARGIN_NEG -8
+
+#define WIRE_LOOP_DELAY 0
+int _1_X_value, _1_Y_value, _2_X_value, _2_Y_value, _3_X_value, _3_Y_value, _4_X_value, _4_Y_value, _5_X_value, _5_Y_value, _6_X_value, _6_Y_value, _7_X_value, _7_Y_value, _8_X_value, _8_Y_value;
+int _1_XR_value, _1_YR_value, _2_XR_value, _2_YR_value, _3_XR_value, _3_YR_value, _4_XR_value, _4_YR_value, _5_XR_value, _5_YR_value, _6_XR_value, _6_YR_value, _7_XR_value, _7_YR_value;
+int _1_Z_value, _2_Z_value, _3_Z_value, _4_Z_value, _5_Z_value, _6_Z_value, _7_Z_value, _8_Z_value;
+
+int yval;
+
+byte val [4];
+byte val_1, val_2;
+int incVal = 0;
+int xValue = 0;
+int ad_result;
+int _initDelay = 5;
+int arrayIndex; // index in data array from i2c
+byte dataArray_1[13]; // data array i2c slave 1
+byte dataArray_2[13]; // data array i2c slave 1
+
+int _1_XLastPotState = 0;
+int _1_XCurrentPotState;
+int _1_YLastPotState = 0;
+int _1_YCurrentPotState;
+int _1_ZLastPotState = 0;
+int _1_ZCurrentPotState;
+int _1_XRLastPotState = 0;
+int _1_XRCurrentPotState;
+int _1_YRLastPotState = 0;
+int _1_YRCurrentPotState;
+
+
+int _2_XLastPotState = 0;
+int _2_XCurrentPotState;
+int _2_YLastPotState = 0;
+int _2_YCurrentPotState;
+int _2_ZLastPotState = 0;
+int _2_ZCurrentPotState;
+int _2_XRLastPotState = 0;
+int _2_XRCurrentPotState;
+int _2_YRLastPotState = 0;
+int _2_YRCurrentPotState;
+
+
+int _3_XLastPotState = 0;
+int _3_XCurrentPotState;
+int _3_YLastPotState = 0;
+int _3_YCurrentPotState;
+int _3_ZLastPotState = 0;
+int _3_ZCurrentPotState;
+int _3_XRLastPotState = 0;
+int _3_XRCurrentPotState;
+int _3_YRLastPotState = 0;
+int _3_YRCurrentPotState;
+
+
+int _4_XLastPotState = 0;
+int _4_XCurrentPotState;
+int _4_YLastPotState = 0;
+int _4_YCurrentPotState;
+int _4_ZLastPotState = 0;
+int _4_ZCurrentPotState;
+int _4_XRLastPotState = 0;
+int _4_XRCurrentPotState;
+int _4_YRLastPotState = 0;
+int _4_YRCurrentPotState;
+
+
+int _5_XLastPotState = 0;
+int _5_XCurrentPotState;
+int _5_YLastPotState = 0;
+int _5_YCurrentPotState;
+int _5_ZLastPotState = 0;
+int _5_ZCurrentPotState;
+int _5_XRLastPotState = 0;
+int _5_XRCurrentPotState;
+int _5_YRLastPotState = 0;
+int _5_YRCurrentPotState;
+
+int _6_XLastPotState = 0;
+int _6_XCurrentPotState;
+int _6_YLastPotState = 0;
+int _6_YCurrentPotState;
+int _6_ZLastPotState = 0;
+int _6_ZCurrentPotState;
+int _6_XRLastPotState = 0;
+int _6_XRCurrentPotState;
+int _6_YRLastPotState = 0;
+int _6_YRCurrentPotState;
+
+int _7_XLastPotState = 0;
+int _7_XCurrentPotState;
+int _7_YLastPotState = 0;
+int _7_YCurrentPotState;
+int _7_ZLastPotState = 0;
+int _7_ZCurrentPotState;
+int _7_XRLastPotState = 0;
+int _7_XRCurrentPotState;
+int _7_YRLastPotState = 0;
+int _7_YRCurrentPotState;
+
+int _8_XLastPotState = 0;
+int _8_XCurrentPotState;
+int _8_YLastPotState = 0;
+int _8_YCurrentPotState;
+int _8_ZLastPotState = 0;
+int _8_ZCurrentPotState;
+
+
+byte a = 16;
+byte b;
+bool lastValueAll = true; // controls initial state of all lastState variables
+bool initState = true;
+bool readLCD = true;
+bool allowLCD = false;
+void setup() {
+Wire.begin();  
+
+
+  
+ Joystick_ begin();
+ 
+ pinMode(LED, OUTPUT);
+ 
+ 
+ pinMode(diode, OUTPUT);
+ pinMode(button, INPUT);
+ /*
+ pinMode(PB4, INPUT_PULLUP);
+ pinMode(PB5, INPUT_PULLUP);
+ pinMode(PB6, INPUT_PULLUP);
+ pinMode(PD4, INPUT_PULLUP);
+ pinMode(PD6, INPUT_PULLUP);
+ pinMode(PD7, INPUT_PULLUP);
+ pinMode(PF0, INPUT);
+ pinMode(PF1, INPUT_PULLUP);
+ pinMode(PF4, INPUT_PULLUP);
+ pinMode(PF5, INPUT_PULLUP);
+ pinMode(PF6, INPUT_PULLUP);
+ pinMode(PF7, INPUT_PULLUP);
+ */
+ Wire.setClock(100000);
+ Serial.begin(9600);
+ 
+ DDRB = 0x00;  //set PB4, PB5, PB6 as input
+ DDRD = 0x2F;  //set PD4, PD6, PD7 as input
+ DDRF = 0x00;  //set PF0, PF1, PF4, PF5, PF6, PF7 
+ 
+ ADCSRA = 0b10000110;
+ 
+ }
+
+ void read_slave_1(){
+
+  
+  
+ }
+
+ 
+
+int _analogRead(int id, int mux){
+
+  if(mux == 0){
+    ADCSRB &= 0xDF;
+  }
+  else if(mux == 1){
+
+    ADCSRB |= (1 << MUX5);
+  }
+  
+  ADMUX = id;
+  ADCSRA = ADCSRA | (1 << ADSC);
+  while(ADCSRA & (1 << ADSC));
+  ad_result = ADCH;
+  
+  return ad_result;
+}
+
+void ledCheck(int x){
+
+  if(x < 127){
+
+    digitalWrite(LED, LOW);
+  }
+  
+  else if(x > 127){
+
+    digitalWrite(LED, HIGH);
+  }
+  
+}
+
+void loop() {
+
+
+
+
+
+Joystick_ _1_(0);
+Joystick_ _2_(1);
+Joystick_ _3_(2);
+Joystick_ _4_(3);
+Joystick_ _5_(4);
+Joystick_ _6_(5);
+Joystick_ _7_(6);
+Joystick_ _8_(7);
+
+arrayIndex = 0;
+
+
+    if(initState){
+        
+    if(lastValueAll){
+
+      
+
+      // set initial state of variables
+
+     Wire.requestFrom(4, 13);    // request 13 bytes from slave device #4
+
+      for(int i = 0; i < 13; i++){
+          
+         val_1 = Wire.read(); 
+         dataArray_1[i] = val_1;
+         
+         delay(WIRE_LOOP_DELAY);
+  
+          }
+
+          
+
+     Wire.requestFrom(8, 13);    // request 13 bytes from slave device #8
+
+      for(int i = 0; i < 13; i++){
+          
+         val_2 = Wire.read(); 
+         dataArray_2[i] = val_2;
+         
+         delay(WIRE_LOOP_DELAY);
+  
+          }
+
+         
+  
+         
+  
+
+      // Joystick 1
+      
+      _1_XCurrentPotState = _analogRead(_1_A_X, 0);
+      _1_XLastPotState = _1_XCurrentPotState;
+      _1_YCurrentPotState = _analogRead(_1_A_Y, 0);
+      _1_YLastPotState = _1_YCurrentPotState;
+      _1_ZCurrentPotState = _analogRead(_1_A_Z, 0);
+      _1_ZLastPotState = _1_ZCurrentPotState;
+      _1_XRCurrentPotState = _analogRead(_1_A_XR, 0);
+      _1_XRLastPotState = _1_XRCurrentPotState;
+      _1_YRCurrentPotState = _analogRead(_1_A_YR, 0);
+      _1_YRLastPotState = _1_YRCurrentPotState;
+      
+      
+      // Joystick 2
+      
+      _2_XCurrentPotState = _analogRead(_2_A_X, 0);
+      _2_XLastPotState = _2_XCurrentPotState;
+      _2_YCurrentPotState = _analogRead(_2_A_Y, 1);
+      _2_YLastPotState = _2_YCurrentPotState;
+      _2_ZCurrentPotState = _analogRead(_2_A_Z, 1);
+      _2_ZLastPotState = _2_ZCurrentPotState;
+      _2_XRCurrentPotState = _analogRead(_2_A_XR, 1);
+      _2_XRLastPotState = _2_XRCurrentPotState;
+      _2_YRCurrentPotState = _analogRead(_2_A_YR, 1);
+      _2_YRLastPotState = _2_YRCurrentPotState;
+      
+
+      // Joystick 3
+      
+      _3_XCurrentPotState = _analogRead(_3_A_X, 1);
+      _3_XLastPotState = _3_XCurrentPotState;
+      _3_YCurrentPotState = _analogRead(_3_A_Y, 1);
+      _3_YLastPotState = _3_YCurrentPotState;
+      
+      _3_ZLastPotState = dataArray_1[_3_A_Z];
+      
+      _3_XRLastPotState = dataArray_1[_3_A_XR];
+     
+      _3_YRLastPotState = dataArray_1[_3_A_YR];
+      
+
+      // Joystick 4
+
+      
+      
+      _4_XLastPotState = dataArray_1[_4_A_X];
+      
+      _4_YLastPotState = dataArray_1[_4_A_Y];
+      
+      _4_ZLastPotState = dataArray_1[_4_A_Z];
+      
+      _4_XRLastPotState = dataArray_1[_4_A_XR];
+      
+      _4_YRLastPotState = dataArray_1[_4_A_YR];
+      
+
+      // Joystick 5
+      
+    
+      _5_XLastPotState = dataArray_1[_5_A_X];
+      
+      _5_YLastPotState = dataArray_1[_5_A_Y];
+      
+      _5_ZLastPotState = dataArray_1[_5_A_Z];
+      
+      _5_XRLastPotState = dataArray_1[_5_A_XR];
+      
+      _5_YRLastPotState = dataArray_1[_5_A_YR];
+
+
+      // Joystick 6
+      
+    
+      _6_XLastPotState = dataArray_2[_6_A_X];
+      
+      _6_YLastPotState = dataArray_2[_6_A_Y];
+      
+      _6_ZLastPotState = dataArray_2[_6_A_Z];
+      
+      _6_XRLastPotState = dataArray_2[_6_A_XR];
+      
+      _6_YRLastPotState = dataArray_2[_6_A_YR];
+
+
+      // Joystick 7
+      
+    
+      _7_XLastPotState = dataArray_2[_7_A_X];
+      
+      _7_YLastPotState = dataArray_2[_7_A_Y];
+      
+      _7_ZLastPotState = dataArray_2[_7_A_Z];
+      
+      _7_XRLastPotState = dataArray_2[_7_A_XR];
+      
+      _7_YRLastPotState = dataArray_2[_7_A_YR];
+
+
+      // Joystick 8
+      
+    
+      _8_XLastPotState = dataArray_2[_8_A_X];
+      
+      _8_YLastPotState = dataArray_2[_8_A_Y];
+      
+      _8_ZLastPotState = dataArray_2[_8_A_Z];
+
+
+      
+      
+     
+      
+      lastValueAll = false;
+       
+    }
+
+    
+    
+    _1_X_value = _analogRead(_1_A_X, 0);
+    _1_.setXAxis(_1_X_value);
+    _1_Y_value = _analogRead(_1_A_Y, 0);
+    _1_.setYAxis(_1_Y_value);
+    _1_Z_value = _analogRead(_1_A_Z, 0);
+    _1_.setZAxis(_1_Z_value);
+    _1_XR_value = _analogRead(_1_A_XR, 0);
+    _1_.setXAxisRotation(_1_XR_value);
+    _1_YR_value = _analogRead(_1_A_YR, 0);
+    _1_.setYAxisRotation(_1_YR_value);
+    _1_.sendState();
+    
+    
+    
+    _2_X_value = _analogRead(_2_A_X, 0);
+    _2_.setXAxis(_2_X_value);
+    _2_Y_value = _analogRead(_2_A_Y, 1);
+    _2_.setYAxis(_2_Y_value);
+    _2_Z_value = _analogRead(_2_A_Z, 1);
+    _2_.setZAxis(_2_Z_value);
+    _2_XR_value = _analogRead(_2_A_XR, 1);
+    _2_.setXAxisRotation(_2_XR_value);
+    _2_YR_value = _analogRead(_2_A_YR, 1);
+    _2_.setYAxisRotation(_2_YR_value);
+    _2_.sendState();
+
+    
+    
+    _3_X_value = _analogRead(_3_A_X, 1);
+    _3_.setXAxis(_3_X_value);
+    _3_Y_value = _analogRead(_3_A_Y, 1);
+    _3_.setYAxis(_3_Y_value);
+    _3_Z_value = dataArray_1[_3_A_Z];
+    _3_.setZAxis(_3_Z_value);
+    _3_XR_value = dataArray_1[_3_A_XR];
+    _3_.setXAxisRotation(_3_XR_value);
+    _3_YR_value = dataArray_1[_3_A_YR];
+    _3_.setYAxisRotation(_3_YR_value);
+    _3_.sendState();
+
+   
+    
+    _4_X_value = dataArray_1[_4_A_X];
+    _4_.setXAxis(_4_X_value);
+    _4_Y_value = dataArray_1[_4_A_Y];
+    _4_.setYAxis(_4_Y_value);
+    _4_Z_value = dataArray_1[_4_A_Z];
+    _4_.setZAxis(_4_Z_value);
+    _4_XR_value = dataArray_1[_4_A_XR];
+    _4_.setXAxisRotation(_4_XR_value);
+    _4_YR_value = dataArray_1[_4_A_YR];
+    _4_.setYAxisRotation(_4_YR_value);
+    _4_.sendState();
+
+    
+    
+    _5_X_value = dataArray_1[_5_A_X];
+    _5_.setXAxis(_5_X_value);
+    _5_Y_value = dataArray_1[_5_A_Y];
+    _5_.setYAxis(_5_Y_value);
+    _5_Z_value = dataArray_1[_5_A_Z];
+    _5_.setZAxis(_5_Z_value);
+    _5_XR_value = dataArray_1[_5_A_XR];
+    _5_.setXAxisRotation(_5_XR_value);
+    _5_YR_value = dataArray_1[_5_A_YR];
+    _5_.setYAxisRotation(_5_YR_value);
+    _5_.sendState();
+
+    
+    
+    
+    _6_X_value = dataArray_2[_6_A_X];
+    _6_.setXAxis(_6_X_value);
+    _6_Y_value = dataArray_2[_6_A_Y];
+    _6_.setYAxis(_6_Y_value);
+    _6_Z_value = dataArray_2[_6_A_Z];
+    _6_.setZAxis(_6_Z_value);
+    _6_XR_value = dataArray_2[_6_A_XR];
+    _6_.setXAxisRotation(_6_XR_value);
+    _6_YR_value = dataArray_2[_6_A_YR];
+    _6_.setYAxisRotation(_6_YR_value);
+    _6_.sendState();
+
+
+
+    _7_X_value = dataArray_2[_7_A_X];
+    _7_.setXAxis(_7_X_value);
+    _7_Y_value = dataArray_2[_7_A_Y];
+    _7_.setYAxis(_7_Y_value);
+    _7_Z_value = dataArray_2[_7_A_Z];
+    _7_.setZAxis(_7_Z_value);
+    _7_XR_value = dataArray_2[_7_A_XR];
+    _7_.setXAxisRotation(_7_XR_value);
+    _7_YR_value = dataArray_2[_7_A_YR];
+    _7_.setYAxisRotation(_7_YR_value);
+    _7_.sendState();
+
+
+
+    _8_X_value = dataArray_2[_8_A_X];
+    _8_.setXAxis(_8_X_value);
+    _8_Y_value = dataArray_2[_8_A_Y];
+    _8_.setYAxis(_8_Y_value);
+    _8_Z_value = dataArray_2[_8_A_Z];
+    _8_.setZAxis(_8_Z_value);
+    _8_.sendState();
+    
+   delay(200);
+ }
+
+ Wire.requestFrom(4, 13);    // request 13 bytes from slave device #4
+
+      for(int i = 0; i < 13; i++){
+          
+         val_1 = Wire.read(); 
+         dataArray_1[i] = val_1;
+         
+         delay(WIRE_LOOP_DELAY);
+  
+          }
+
+          
+
+     Wire.requestFrom(8, 13);    // request 13 bytes from slave device #8
+
+      for(int i = 0; i < 13; i++){
+          
+         val_2 = Wire.read(); 
+         dataArray_2[i] = val_2;
+         
+         delay(WIRE_LOOP_DELAY);
+  
+          }
+ 
+/*
+ Serial.print("INTERNI PUUUUUUUUUUUUUUULUP     ");
+ Serial.println(_analogRead(_1_A_X, 0));
+ */
+  //Joystick 1***************************************************************************************************
+
+  // Joystick _1_ X Axis
+
+  _1_XCurrentPotState = _analogRead(_1_A_X, 0);
+
+  while(_1_XCurrentPotState != _1_XLastPotState){
+
+    if(_1_XCurrentPotState - _1_XLastPotState < MARGIN_POS && _1_XCurrentPotState - _1_XLastPotState > MARGIN_NEG){
+
+        break;
+    }
+    
+   initState = false;
+   _1_X_value = _analogRead(_1_A_X, 0);
+   _1_.setXAxis(_1_X_value);
+  
+   _1_XLastPotState = _1_XCurrentPotState;
+   _1_.sendState();
+  }
+
+  // Joystick _1_ Y Axis
+
+  _1_YCurrentPotState = _analogRead(_1_A_Y, 0);
+
+  while(_1_YCurrentPotState != _1_YLastPotState){
+
+    if(_1_YCurrentPotState - _1_YLastPotState < MARGIN_POS && _1_YCurrentPotState - _1_YLastPotState > MARGIN_NEG){
+
+        break;
+    }
+    
+   initState = false;
+   _1_Y_value = _analogRead(_1_A_Y, 0);
+   _1_.setYAxis(_1_Y_value);
+   _1_YLastPotState = _1_YCurrentPotState;
+   _1_.sendState();
+  }
+
+  // Joystick _1_ Z Axis
+
+  _1_ZCurrentPotState = _analogRead(_1_A_Z, 0);
+
+  while(_1_ZCurrentPotState != _1_ZLastPotState){
+
+    if(_1_ZCurrentPotState - _1_ZLastPotState < MARGIN_POS && _1_ZCurrentPotState - _1_ZLastPotState > MARGIN_NEG){
+
+        break;
+    }
+    
+   initState = false;
+   _1_Z_value = _analogRead(_1_A_Z, 0);
+   _1_.setZAxis(_1_Z_value);
+   _1_ZLastPotState = _1_ZCurrentPotState;
+   _1_.sendState();
+  }
+
+  // Joystick _1_ X Axis Rotation
+
+  _1_XRCurrentPotState = _analogRead(_1_A_XR, 0);
+
+  while(_1_XRCurrentPotState != _1_XRLastPotState){
+
+    if(_1_XRCurrentPotState - _1_XRLastPotState < MARGIN_POS && _1_XRCurrentPotState - _1_XRLastPotState > MARGIN_NEG){
+
+        break;
+    }
+    
+   initState = false;
+   _1_XR_value = _analogRead(_1_A_XR, 0);
+   _1_.setXAxisRotation(_1_XR_value);
+   _1_XRLastPotState = _1_XRCurrentPotState;
+   _1_.sendState();
+  }
+
+  // Joystick _1_ Y Axis Rotation
+  
+  _1_YRCurrentPotState = _analogRead(_1_A_YR, 0);
+
+  while(_1_YRCurrentPotState != _1_YRLastPotState){
+
+    if(_1_YRCurrentPotState - _1_YRLastPotState < MARGIN_POS && _1_YRCurrentPotState - _1_YRLastPotState > MARGIN_NEG){
+
+        break;
+    }
+    
+    initState = false;
+   _1_YR_value = _analogRead(_1_A_YR, 0);
+   _1_.setYAxisRotation(_1_YR_value);
+   _1_YRLastPotState = _1_YRCurrentPotState;
+   _1_.sendState();
+  }
+
+  // Joystick 2 ******************************************************************************************************
+
+  // Joystick _2_ X Axis
+
+  _2_XCurrentPotState = _analogRead(_2_A_X, 0);
+
+  while(_2_XCurrentPotState != _2_XLastPotState){
+
+    if(_2_XCurrentPotState - _2_XLastPotState < MARGIN_POS && _2_XCurrentPotState - _2_XLastPotState > MARGIN_NEG){
+
+        break;
+    }
+    
+    initState = false;
+   _2_X_value = _analogRead(_2_A_X, 0);
+   _2_.setXAxis(_2_X_value);
+   _2_XLastPotState = _2_XCurrentPotState;
+   _2_.sendState();
+   
+  }
+
+  // Joystick _2_ Y Axis
+
+  _2_YCurrentPotState = _analogRead(_2_A_Y, 1);
+
+  while(_2_YCurrentPotState != _2_YLastPotState){
+
+    if(_2_YCurrentPotState - _2_YLastPotState < MARGIN_POS && _2_YCurrentPotState - _2_YLastPotState > MARGIN_NEG){
+
+        break;
+    }
+    
+    initState = false;
+   _2_Y_value = _analogRead(_2_A_Y, 1);
+   _2_.setYAxis(_2_Y_value);
+   _2_YLastPotState = _2_YCurrentPotState;
+   _2_.sendState();
+   
+  }
+
+  // Joystick _2_ Z Axis
+
+  _2_ZCurrentPotState = _analogRead(_2_A_Z, 1);
+
+  while(_2_ZCurrentPotState != _2_ZLastPotState){
+
+    if(_2_ZCurrentPotState - _2_ZLastPotState < MARGIN_POS && _2_ZCurrentPotState - _2_ZLastPotState > MARGIN_NEG){
+
+        break;
+    }
+    
+    initState = false;
+   _2_Z_value = _analogRead(_2_A_Z, 1);
+   _2_.setZAxis(_2_Z_value);
+   _2_ZLastPotState = _2_ZCurrentPotState;
+   _2_.sendState();
+   
+  }
+  
+  
+  // Joystick _2_ X Axis Rotation
+
+  _2_XRCurrentPotState = _analogRead(_2_A_XR, 1);
+
+  while(_2_XRCurrentPotState != _2_XRLastPotState){
+
+    if(_2_XRCurrentPotState - _2_XRLastPotState < MARGIN_POS && _2_XRCurrentPotState - _2_XRLastPotState > MARGIN_NEG){
+
+        break;
+    }
+    
+    initState = false;
+   _2_XR_value = _analogRead(_2_A_XR, 1);
+   _2_.setXAxisRotation(_2_XR_value);
+   _2_XRLastPotState = _2_XRCurrentPotState;
+   _2_.sendState();
+   
+  }
+
+  // Joystick _2_ Y Axis Rotation
+  
+  _2_YRCurrentPotState = _analogRead(_2_A_YR, 1);
+
+  while(_2_YRCurrentPotState != _2_YRLastPotState){
+
+    if(_2_YRCurrentPotState - _2_YRLastPotState < MARGIN_POS && _2_YRCurrentPotState - _2_YRLastPotState > MARGIN_NEG){
+
+        break;
+    }
+  
+    initState = false;
+   _2_YR_value = _analogRead(_2_A_YR, 1);
+   _2_.setYAxisRotation(_2_YR_value);
+   _2_YRLastPotState = _2_YRCurrentPotState;
+   _2_.sendState();
+  }
+
+  // Joystick 3******************************************************************************************************
+
+  
+
+  // Joystick _3_ X Axis
+  
+  _3_XCurrentPotState = _analogRead(_3_A_X, 1);
+
+  while(_3_XCurrentPotState != _3_XLastPotState){
+
+    if(_3_XCurrentPotState - _3_XLastPotState < MARGIN_POS && _3_XCurrentPotState - _3_XLastPotState > MARGIN_NEG){
+
+        break;
+    }
+     
+    initState = false;
+   _3_X_value = _analogRead(_3_A_X, 1);
+   
+   _3_.setXAxis(_3_X_value);
+   _3_XLastPotState = _3_XCurrentPotState;
+   _3_.sendState();
+  }
+
+  // Joystick _3_ Y Axis
+  
+  _3_YCurrentPotState = _analogRead(_3_A_Y, 1);
+
+  while(_3_YCurrentPotState != _3_YLastPotState){
+
+    if(_3_YCurrentPotState - _3_YLastPotState < MARGIN_POS && _3_YCurrentPotState - _3_YLastPotState > MARGIN_NEG){
+
+        break;
+    }
+     
+    initState = false;
+   _3_Y_value = _analogRead(_3_A_Y, 1);
+   
+   _3_.setYAxis(_3_Y_value);
+   _3_YLastPotState = _3_YCurrentPotState;
+   _3_.sendState();
+  }
+
+ 
+
+  // Joystick _3_ Z Axis
+
+  
+
+  while(dataArray_1[_3_A_Z] != _3_ZLastPotState){
+
+    if(dataArray_1[_3_A_Z] - _3_ZLastPotState < MARGIN_POS && dataArray_1[_3_A_Z] - _3_ZLastPotState > MARGIN_NEG || dataArray_1[_3_A_Z] == 11 || dataArray_1[_3_A_Z] == 147){
+
+        break;
+    }
+    Serial.print("3Z last pot state: ");
+    Serial.println(_3_ZLastPotState);
+      Serial.print("3Z dataArray: ");
+    Serial.println(dataArray_1[_3_A_Z]);
+    
+    initState = false;
+   _3_Z_value = dataArray_1[_3_A_Z];
+   _3_.setZAxis(_3_Z_value);
+   _3_ZLastPotState = dataArray_1[_3_A_Z];
+   _3_.sendState();
+   
+  }
+  
+  // Joystick _3_ X Axis Rotation
+
+  
+
+  while(dataArray_1[_3_A_XR] != _3_XRLastPotState){
+
+    if(dataArray_1[_3_A_XR] - _3_XRLastPotState < MARGIN_POS && dataArray_1[_3_A_XR] - _3_XRLastPotState > MARGIN_NEG || dataArray_1[_3_A_XR] == 11 || dataArray_1[_3_A_XR] == 147){
+
+        break;
+    }
+    initState = false;
+    
+    
+    Serial.print("3XR last pot state: ");
+    Serial.println(_3_XRLastPotState);
+      Serial.print("3XR dataArray: ");
+    Serial.println(dataArray_1[_3_A_XR]);
+    /*
+    digitalWrite(LED, HIGH);
+    */
+    initState = false;
+   _3_XR_value = dataArray_1[_3_A_XR];
+   _3_.setXAxisRotation(_3_XR_value);
+   _3_XRLastPotState = dataArray_1[_3_A_XR];
+   _3_.sendState();
+   
+  }
+
+  // Joystick _3_ Y Axis Rotation
+
+  
+
+  while(dataArray_1[_3_A_YR] != _3_YRLastPotState){
+
+    if(dataArray_1[_3_A_YR] - _3_YRLastPotState < MARGIN_POS && dataArray_1[_3_A_YR] - _3_YRLastPotState > MARGIN_NEG || dataArray_1[_3_A_YR] == 11 || dataArray_1[_3_A_YR] == 147){
+
+        break;
+    }
+    
+    Serial.print("3YR last pot state: ");
+    Serial.println(_3_YRLastPotState);
+      Serial.print("3YR dataArray: ");
+    Serial.println(dataArray_1[_3_A_YR]);
+    initState = false;
+   _3_YR_value = dataArray_1[_3_A_YR];
+   _3_.setYAxisRotation(_3_YR_value);
+   _3_YRLastPotState = dataArray_1[_3_A_YR];
+   _3_.sendState();
+   
+  }
+
+
+  // Joystick 4******************************************************************************************************
+
+
+
+   
+
+  // Joystick _4_ X Axis
+
+ 
+
+  while(dataArray_1[_4_A_X] != _4_XLastPotState){
+
+    
+    if(dataArray_1[_4_A_X] - _4_XLastPotState < MARGIN_POS && dataArray_1[_4_A_X] - _4_XLastPotState > MARGIN_NEG || dataArray_1[_4_A_X] == 11 || dataArray_1[_4_A_X] == 147){
+
+        break;
+    }
+    
+    
+    Serial.print("4X last pot state: ");
+    Serial.println(_4_XLastPotState);
+      Serial.print("4X dataArray: ");
+    Serial.println(dataArray_1[_4_A_X]);
+    
+    initState = false;
+    
+   _4_X_value = dataArray_1[_4_A_X];
+   _4_.setXAxis(_4_X_value);
+   _4_XLastPotState = dataArray_1[_4_A_X];
+   _4_.sendState();
+   
+  }
+
+  // Joystick _4_ Y Axis
+
+  
+
+  while(dataArray_1[_4_A_Y] != _4_YLastPotState){
+
+    if(dataArray_1[_4_A_Y] - _4_YLastPotState < MARGIN_POS && dataArray_1[_4_A_Y] - _4_YLastPotState > MARGIN_NEG || dataArray_1[_4_A_Y] == 11 || dataArray_1[_4_A_Y] == 147){
+
+        break;
+    }
+    
+    Serial.print("4Y last pot state: ");
+    Serial.println(_4_YLastPotState);
+      Serial.print("4Y dataArray: ");
+    Serial.println(dataArray_1[_4_A_Y]);
+    initState = false;
+   _4_Y_value = dataArray_1[_4_A_Y];
+   _4_.setYAxis(_4_Y_value);
+   _4_YLastPotState = dataArray_1[_4_A_Y];
+   _4_.sendState();
+   
+  }
+
+  // Joystick _4_ Z Axis
+
+  
+
+  while(dataArray_1[_4_A_Z] != _4_ZLastPotState){
+
+    if(dataArray_1[_4_A_Z] - _4_ZLastPotState < MARGIN_POS && dataArray_1[_4_A_Z] - _4_ZLastPotState > MARGIN_NEG || dataArray_1[_4_A_Z] == 11 || dataArray_1[_4_A_Z] == 147){
+
+        break;
+    }
+    
+    Serial.print("4Z last pot state: ");
+    Serial.println(_4_ZLastPotState);
+      Serial.print("4Z dataArray: ");
+    Serial.println(dataArray_1[_4_A_Z]);
+    initState = false;
+   _4_Z_value = dataArray_1[_4_A_Z];
+   _4_.setZAxis(_4_Z_value);
+   _4_ZLastPotState = dataArray_1[_4_A_Z];
+   _4_.sendState();
+   
+  }
+
+  // Joystick _4_ X Axis Rotation
+
+ 
+
+  while(dataArray_1[_4_A_XR] != _4_XRLastPotState){
+    
+    
+    if(dataArray_1[_4_A_XR] - _4_XRLastPotState < MARGIN_POS && dataArray_1[_4_A_XR] - _4_XRLastPotState > MARGIN_NEG || dataArray_1[_4_A_XR] == 11 || dataArray_1[_4_A_XR] == 147){
+
+        break;
+    }
+    initState = false;
+    
+    
+
+        Serial.print("4XR last pot state: ");
+    Serial.println(_4_XRLastPotState);
+      Serial.print("4XR dataArray: ");
+    Serial.println(dataArray_1[_4_A_XR]);
+    /*
+    digitalWrite(LED, HIGH);
+    */
+   _4_XR_value = dataArray_1[_4_A_XR];
+   _4_.setXAxisRotation(_4_XR_value);
+   _4_XRLastPotState = dataArray_1[_4_A_XR];
+   _4_.sendState();
+    
+   
+  }
+   
+  
+
+  // Joystick _4_ Y Axis Rotation
+
+  
+
+  while(dataArray_1[_4_A_YR] != _4_YRLastPotState){
+
+    if(dataArray_1[_4_A_YR] - _4_YRLastPotState < MARGIN_POS && dataArray_1[_4_A_YR] - _4_YRLastPotState > MARGIN_NEG || dataArray_1[_4_A_YR] == 11 || dataArray_1[_4_A_YR] == 147){
+
+        break;
+    }
+    
+    
+    Serial.print("4YR last pot state: ");
+    Serial.println(_4_YRLastPotState);
+      Serial.print("4YR dataArray: ");
+    Serial.println(dataArray_1[_4_A_YR]);
+    initState = false;
+   _4_YR_value = dataArray_1[_4_A_YR];
+   _4_.setYAxisRotation(_4_YR_value);
+   _4_YRLastPotState = dataArray_1[_4_A_YR];
+   _4_.sendState();
+   
+  }
+
+  // Joystick 5*******************************************************************************************************
+
+
+  
+
+  // Joystick _5_ X Axis
+
+  
+
+  while(dataArray_1[_5_A_X] != _5_XLastPotState){
+
+    if(dataArray_1[_5_A_X] - _5_XLastPotState < MARGIN_POS && dataArray_1[_5_A_X] - _5_XLastPotState > MARGIN_NEG){
+
+        break;
+    }
+    Serial.print("5X last pot state: ");
+    Serial.println(_5_XLastPotState);
+      Serial.print("5X dataArray: ");
+    Serial.println(dataArray_1[_5_A_X]);
+    
+    initState = false;
+   _5_X_value = dataArray_1[_5_A_X];
+   _5_.setXAxis(_5_X_value);
+   _5_XLastPotState = dataArray_1[_5_A_X];
+   _5_.sendState();
+   
+  }
+
+  // Joystick _5_ Y Axis
+
+  
+
+  while(dataArray_1[_5_A_Y] != _5_YLastPotState){
+
+    if(dataArray_1[_5_A_Y] - _5_YLastPotState < MARGIN_POS && dataArray_1[_5_A_Y] - _5_YLastPotState > MARGIN_NEG){
+
+        break;
+    }
+    Serial.print("5Y last pot state: ");
+    Serial.println(_5_YLastPotState);
+      Serial.print("5Y dataArray: ");
+    Serial.println(dataArray_1[_5_A_Y]);
+    initState = false;
+   _5_Y_value = dataArray_1[_5_A_Y];
+   _5_.setYAxis(_5_Y_value);
+   _5_YLastPotState = dataArray_1[_5_A_Y];
+   _5_.sendState();
+   
+  }
+
+  // Joystick _5_ Z Axis
+
+  
+
+  while(dataArray_1[_5_A_Z] != _5_ZLastPotState){
+
+    if(dataArray_1[_5_A_Z] - _5_ZLastPotState < MARGIN_POS && dataArray_1[_5_A_Z] - _5_ZLastPotState > MARGIN_NEG){
+
+        break;
+    }
+    Serial.print("5Z last pot state: ");
+    Serial.println(_5_ZLastPotState);
+      Serial.print("5Z dataArray: ");
+    Serial.println(dataArray_1[_5_A_Z]);
+    initState = false;
+   _5_Z_value = dataArray_1[_5_A_Z];
+   _5_.setZAxis(_5_Z_value);
+   _5_ZLastPotState = dataArray_1[_5_A_Z];
+   _5_.sendState();
+   
+  }
+
+  // Joystick _5_ X Axis Rotation
+
+  
+
+  while(dataArray_1[_5_A_XR] != _5_XRLastPotState){
+
+    if(dataArray_1[_5_A_XR] - _5_XRLastPotState < MARGIN_POS && dataArray_1[_5_A_XR] - _5_XRLastPotState > MARGIN_NEG){
+
+        break;
+    }
+    Serial.print("5XR last pot state: ");
+    Serial.println(_5_XRLastPotState);
+      Serial.print("5XR dataArray: ");
+    Serial.println(dataArray_1[_5_A_XR]);
+    initState = false;
+   _5_XR_value = dataArray_1[_5_A_XR];
+   _5_.setXAxisRotation(_5_XR_value);
+   _5_XRLastPotState = dataArray_1[_5_A_XR];
+   _5_.sendState();
+   
+  }
+
+  // Joystick _5_ Y Axis Rotation
+
+  
+
+  while(dataArray_1[_5_A_YR] != _5_YRLastPotState){
+
+    if(dataArray_1[_5_A_YR] - _5_YRLastPotState < MARGIN_POS && dataArray_1[_5_A_YR] - _5_YRLastPotState > MARGIN_NEG){
+
+        break;
+    }
+    Serial.print("5YR last pot state: ");
+    Serial.println(_5_YRLastPotState);
+      Serial.print("5YR dataArray: ");
+    Serial.println(dataArray_1[_5_A_YR]);
+    initState = false;
+   _5_YR_value = dataArray_1[_5_A_YR];
+   _5_.setYAxisRotation(_5_YR_value);
+   _5_YRLastPotState = dataArray_1[_5_A_YR];
+   _5_.sendState();
+   
+  }
+
+ /* 
+for(int i = 0; i < 13; i++){
+
+  Serial.print("array index : ");
+  Serial.print(i);
+  Serial.print(" ");
+  Serial.println(dataArray_1[i]);
+  delay(1000);
+}
+    
+*/
+    
+// Joystick 6*******************************************************************************************************
+
+
+  
+
+  // Joystick _6_ X Axis
+
+  
+
+  while(dataArray_2[_6_A_X] != _6_XLastPotState){
+
+    if(dataArray_2[_6_A_X] - _6_XLastPotState < MARGIN_POS && dataArray_2[_6_A_X] - _6_XLastPotState > MARGIN_NEG){
+
+        break;
+    }
+    Serial.print("6X last pot state: ");
+    Serial.println(_6_XLastPotState);
+      Serial.print("6X dataArray: ");
+    Serial.println(dataArray_2[_6_A_X]);
+    initState = false;
+   _6_X_value = dataArray_2[_6_A_X];
+   _6_.setXAxis(_6_X_value);
+   _6_XLastPotState = dataArray_2[_6_A_X];
+   _6_.sendState();
+   
+  }
+
+  // Joystick _6_ Y Axis
+
+  
+
+  while(dataArray_2[_6_A_Y] != _6_YLastPotState){
+
+    if(dataArray_2[_6_A_Y] - _6_YLastPotState < MARGIN_POS && dataArray_2[_6_A_Y] - _6_YLastPotState > MARGIN_NEG){
+
+        break;
+    }
+    
+    Serial.print("6Y last pot state: ");
+    Serial.println(_6_YLastPotState);
+      Serial.print("6Y dataArray: ");
+    Serial.println(dataArray_2[_6_A_Y]);
+    
+    initState = false;
+   _6_Y_value = dataArray_2[_6_A_Y];
+   _6_.setYAxis(_6_Y_value);
+   _6_YLastPotState = dataArray_2[_6_A_Y];
+   _6_.sendState();
+   
+  }
+
+  // Joystick _6_ Z Axis
+
+  
+
+  while(dataArray_2[_6_A_Z] != _6_ZLastPotState){
+
+    if(dataArray_2[_6_A_Z] - _6_ZLastPotState < MARGIN_POS && dataArray_2[_6_A_Z] - _6_ZLastPotState > MARGIN_NEG){
+
+        break;
+    }
+    
+    Serial.print("6Z last pot state: ");
+    Serial.println(_6_ZLastPotState);
+      Serial.print("6Z dataArray: ");
+    Serial.println(dataArray_2[_6_A_Z]);
+    
+    initState = false;
+   _6_Z_value = dataArray_2[_6_A_Z];
+   _6_.setZAxis(_6_Z_value);
+   _6_ZLastPotState = dataArray_2[_6_A_Z];
+   _6_.sendState();
+   
+  }
+
+  // Joystick _6_ X Axis Rotation
+
+  
+
+  while(dataArray_2[_6_A_XR] != _6_XRLastPotState){
+
+    if(dataArray_2[_6_A_XR] - _6_XRLastPotState < MARGIN_POS && dataArray_2[_6_A_XR] - _6_XRLastPotState > MARGIN_NEG){
+
+        break;
+    }
+    
+    Serial.print("6XR last pot state: ");
+    Serial.println(_6_XRLastPotState);
+      Serial.print("6XR dataArray: ");
+    Serial.println(dataArray_2[_6_A_XR]);
+    
+    initState = false;
+   _6_XR_value = dataArray_2[_6_A_XR];
+   _6_.setXAxisRotation(_6_XR_value);
+   _6_XRLastPotState = dataArray_2[_6_A_XR];
+   _6_.sendState();
+   
+  }
+
+  // Joystick _6_ Y Axis Rotation
+
+  
+
+  while(dataArray_2[_6_A_YR] != _6_YRLastPotState){
+
+    if(dataArray_2[_6_A_YR] - _6_YRLastPotState < MARGIN_POS && dataArray_2[_6_A_YR] - _6_YRLastPotState > MARGIN_NEG){
+
+        break;
+    }
+    
+    Serial.print("6YR last pot state: ");
+    Serial.println(_6_YRLastPotState);
+      Serial.print("6YR dataArray: ");
+    Serial.println(dataArray_2[_6_A_YR]);
+    
+    initState = false;
+   _6_YR_value = dataArray_2[_6_A_YR];
+   _6_.setYAxisRotation(_6_YR_value);
+   _6_YRLastPotState = dataArray_2[_6_A_YR];
+   _6_.sendState();
+   
+  }
+
+
+
+  // Joystick 7*******************************************************************************************************
+
+
+  
+
+  // Joystick _7_ X Axis
+
+  
+
+  while(dataArray_2[_7_A_X] != _7_XLastPotState){
+
+    if(dataArray_2[_7_A_X] - _7_XLastPotState < MARGIN_POS && dataArray_2[_7_A_X] - _7_XLastPotState > MARGIN_NEG){
+
+        break;
+    }
+    
+    Serial.print("7X last pot state: ");
+    Serial.println(_7_XLastPotState);
+      Serial.print("7X dataArray: ");
+    Serial.println(dataArray_2[_7_A_X]);
+    
+    initState = false;
+   _7_X_value = dataArray_2[_7_A_X];
+   _7_.setXAxis(_7_X_value);
+   _7_XLastPotState = dataArray_2[_7_A_X];
+   _7_.sendState();
+   
+  }
+
+  // Joystick _7_ Y Axis
+
+  
+
+  while(dataArray_2[_7_A_Y] != _7_YLastPotState){
+
+    if(dataArray_2[_7_A_Y] - _7_YLastPotState < MARGIN_POS && dataArray_2[_7_A_Y] - _7_YLastPotState > MARGIN_NEG){
+
+        break;
+    }
+    
+    Serial.print("7Y last pot state: ");
+    Serial.println(_7_YLastPotState);
+      Serial.print("7Y dataArray: ");
+    Serial.println(dataArray_2[_7_A_Y]);
+    
+    initState = false;
+   _7_Y_value = dataArray_2[_7_A_Y];
+   _7_.setYAxis(_7_Y_value);
+   _7_YLastPotState = dataArray_2[_7_A_Y];
+   _7_.sendState();
+   
+  }
+
+  // Joystick _7_ Z Axis
+
+  
+
+  while(dataArray_2[_7_A_Z] != _7_ZLastPotState){
+
+    if(dataArray_2[_7_A_Z] - _7_ZLastPotState < MARGIN_POS && dataArray_2[_7_A_Z] - _7_ZLastPotState > MARGIN_NEG){
+
+        break;
+    }
+ 
+    Serial.print("7Z last pot state: ");
+    Serial.println(_7_ZLastPotState);
+      Serial.print("7Z dataArray: ");
+    Serial.println(dataArray_2[_7_A_Z]);
+  
+    initState = false;
+   _7_Z_value = dataArray_2[_7_A_Z];
+   _7_.setZAxis(_7_Z_value);
+   _7_ZLastPotState = dataArray_2[_7_A_Z];
+   _7_.sendState();
+   
+  }
+
+  // Joystick _7_ X Axis Rotation
+
+  
+
+  while(dataArray_2[_7_A_XR] != _7_XRLastPotState){
+
+    if(dataArray_2[_7_A_XR] - _7_XRLastPotState < MARGIN_POS && dataArray_2[_7_A_XR] - _7_XRLastPotState > MARGIN_NEG){
+
+        break;
+    }
+    
+    Serial.print("7XR last pot state: ");
+    Serial.println(_7_XRLastPotState);
+      Serial.print("7XR dataArray: ");
+    Serial.println(dataArray_2[_7_A_XR]);
+    
+    initState = false;
+   _7_XR_value = dataArray_2[_7_A_XR];
+   _7_.setXAxisRotation(_7_XR_value);
+   _7_XRLastPotState = dataArray_2[_7_A_XR];
+   _7_.sendState();
+   
+  }
+
+  // Joystick _7_ Y Axis Rotation
+
+  
+
+  while(dataArray_2[_7_A_YR] != _7_YRLastPotState){
+
+    if(dataArray_2[_7_A_YR] - _7_YRLastPotState < MARGIN_POS && dataArray_2[_7_A_YR] - _7_YRLastPotState > MARGIN_NEG){
+
+        break;
+    }
+    
+    Serial.print("7YR last pot state: ");
+    Serial.println(_7_YRLastPotState);
+      Serial.print("7YR dataArray: ");
+    Serial.println(dataArray_2[_7_A_YR]);
+    
+    initState = false;
+   _7_YR_value = dataArray_2[_7_A_YR];
+   _7_.setYAxisRotation(_7_YR_value);
+   _7_YRLastPotState = dataArray_2[_7_A_YR];
+   _7_.sendState();
+   
+  }
+    
+
+// Joystick _8_ X Axis
+
+  
+
+  while(dataArray_2[_8_A_X] != _8_XLastPotState){
+
+    if(dataArray_2[_8_A_X] - _8_XLastPotState < MARGIN_POS && dataArray_2[_8_A_X] - _8_XLastPotState > MARGIN_NEG){
+
+        break;
+    }
+    
+    Serial.print("8X last pot state: ");
+    Serial.println(_8_XLastPotState);
+      Serial.print("8X dataArray: ");
+    Serial.println(dataArray_2[_8_A_X]);
+    
+    initState = false;
+   _8_X_value = dataArray_2[_8_A_X];
+   _8_.setXAxis(_8_X_value);
+   _8_XLastPotState = dataArray_2[_8_A_X];
+   _8_.sendState();
+   
+  }
+
+  // Joystick _8_ Y Axis
+
+  
+
+  while(dataArray_2[_8_A_Y] != _8_YLastPotState){
+
+    if(dataArray_2[_8_A_Y] - _8_YLastPotState < MARGIN_POS && dataArray_2[_8_A_Y] - _8_YLastPotState > MARGIN_NEG){
+
+        break;
+    }
+    
+    Serial.print("8Y last pot state: ");
+    Serial.println(_8_YLastPotState);
+      Serial.print("8Y dataArray: ");
+    Serial.println(dataArray_2[_8_A_Y]);
+    
+    initState = false;
+   _8_Y_value = dataArray_2[_8_A_Y];
+   _8_.setYAxis(_8_Y_value);
+   _8_YLastPotState = dataArray_2[_8_A_Y];
+   _8_.sendState();
+   
+  }
+
+  // Joystick _8_ Z Axis
+
+  
+
+  while(dataArray_2[_8_A_Z] != _8_ZLastPotState){
+
+    if(dataArray_2[_8_A_Z] - _8_ZLastPotState < MARGIN_POS && dataArray_2[_8_A_Z] - _8_ZLastPotState > MARGIN_NEG){
+
+        break;
+    }
+ 
+    Serial.print("8Z last pot state: ");
+    Serial.println(_8_ZLastPotState);
+      Serial.print("8Z dataArray: ");
+    Serial.println(dataArray_2[_8_A_Z]);
+  
+    initState = false;
+   _8_Z_value = dataArray_2[_8_A_Z];
+   _8_.setZAxis(_8_Z_value);
+   _8_ZLastPotState = dataArray_2[_8_A_Z];
+   _8_.sendState();
+   
+  }
+    
+    
+
+  }
+
+ 
+  
+
+
+
+ 
+
+ 
